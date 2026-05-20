@@ -1,0 +1,8 @@
+name = "liuegram"
+main = "src/index.ts"
+compatibility_date = "2026-05-20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "liuegram"
+database_id = "replace-with-cloudflare-d1-database-id"

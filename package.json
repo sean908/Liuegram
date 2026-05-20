@@ -1,0 +1,25 @@
+{
+  "name": "liuegram",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "webhook:set": "tsx scripts/set-webhook.ts",
+    "webhook:info": "tsx scripts/get-webhook-info.ts"
+  },
+  "dependencies": {
+    "grammy": "^1.38.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260520.0",
+    "@types/node": "^22.15.21",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.16.1"
+  }
+}
