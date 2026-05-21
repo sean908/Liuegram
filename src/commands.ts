@@ -1,5 +1,7 @@
 import type { MuteMode, Session } from "./types";
 
+export const MUTED_USER_NOTICE = "你已被禁言。";
+
 export type AdminCommand =
   | { kind: "mute"; mode: Exclude<MuteMode, "none"> }
   | { kind: "unmute" }
@@ -53,4 +55,12 @@ export function mutedAdminPrefix(mode: MuteMode): string {
     return "[部分禁言用户的消息，仍已转发]";
   }
   return "";
+}
+
+export function shouldNotifyMutedUser(mode: MuteMode): boolean {
+  return mode === "full" || mode === "partial";
+}
+
+export function shouldForwardMutedUserMessage(mode: MuteMode): boolean {
+  return mode !== "full";
 }

@@ -1,7 +1,15 @@
 import type { ReactionType } from "@grammyjs/types/message";
 import { Bot, type Context } from "grammy";
-import { parseAdminCommand, formatStatus, mutedAdminPrefix } from "./commands";
+import {
+  MUTED_USER_NOTICE,
+  parseAdminCommand,
+  formatStatus,
+  mutedAdminPrefix,
+  shouldForwardMutedUserMessage,
+  shouldNotifyMutedUser,
+} from "./commands";
 import { parseAdminGroupId } from "./env";
+import { getAdminReactionTarget } from "./reactions";
 import { Repository } from "./repository";
 import type { Env, Session, UserProfile } from "./types";
 
@@ -60,15 +68,18 @@ async function handleUserMessage(
     await repo.touchSessionProfile(session, profile);
   }
 
-  if (session.muteMode === "full") {
-    await ctx.reply("你当前被禁言，消息未送达。");
-    return;
+  if (shouldNotifyMutedUser(session.muteMode)) {
+    await ctx.reply(MUTED_USER_NOTICE);
   }
 
   if (session.muteMode === "partial") {
     await ctx.api.sendMessage(adminGroupId, mutedAdminPrefix(session.muteMode), {
       message_thread_id: session.topicId,
     });
+  }
+
+  if (!shouldForwardMutedUserMessage(session.muteMode)) {
+    return;
   }
 
   const delivered = await deliverUserMessageToAdmin(ctx, adminGroupId, session);
@@ -145,12 +156,7 @@ async function handleAdminCommand(
   if (command.kind === "mute") {
     await repo.setMuteMode(session.id, command.mode);
     await ctx.reply(`已设置禁言模式: ${command.mode}`);
-    await ctx.api.sendMessage(
-      session.userChatId,
-      command.mode === "full"
-        ? "你已被完全禁言，后续消息不会送达客服。"
-        : "你已被部分禁言，后续消息仍会送达客服但会标记禁言状态。",
-    );
+    await ctx.api.sendMessage(session.userChatId, MUTED_USER_NOTICE);
     return true;
   }
 
@@ -284,14 +290,18 @@ async function handleReaction(
 
   if (reaction.chat.id === adminGroupId && reaction.chat.type !== "private") {
     const mapping = await repo.findByAdminChatMessage(adminGroupId, reaction.message_id);
-    if (!mapping || mapping.direction !== "user_to_admin") {
+    if (!mapping) {
       return;
     }
     const session = await repo.getSessionByTopicId(mapping.adminTopicId);
     if (!session) {
       return;
     }
-    await setVisibleReaction(ctx, session.userChatId, mapping.userMessageId, reaction.new_reaction);
+    const target = getAdminReactionTarget(mapping, session);
+    if (!target) {
+      return;
+    }
+    await setVisibleReaction(ctx, target.chatId, target.messageId, reaction.new_reaction);
     return;
   }
 

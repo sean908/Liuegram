@@ -1,6 +1,6 @@
 {
   "name": "liuegram",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,10 +10,12 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "webhook:set": "tsx scripts/set-webhook.ts",
-    "webhook:info": "tsx scripts/get-webhook-info.ts"
+    "webhook:info": "tsx scripts/get-webhook-info.ts",
+    "commands:set": "tsx scripts/set-commands.ts"
   },
   "dependencies": {
-    "grammy": "^1.38.3"
+    "grammy": "^1.38.3",
+    "undici": "^7.25.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260520.0",

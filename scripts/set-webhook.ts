@@ -1,10 +1,17 @@
+import { ProxyAgent, setGlobalDispatcher } from "undici";
+
 const token = process.env.BOT_TOKEN;
 const secret = process.env.WEBHOOK_SECRET;
 const webhookUrl = process.env.WEBHOOK_URL;
+const proxyUrl = process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY;
 const dropPendingUpdates = process.env.DROP_PENDING_UPDATES === "true";
 
 if (!token || !secret || !webhookUrl) {
   throw new Error("BOT_TOKEN, WEBHOOK_SECRET and WEBHOOK_URL are required");
+}
+
+if (proxyUrl) {
+  setGlobalDispatcher(new ProxyAgent(proxyUrl));
 }
 
 const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
