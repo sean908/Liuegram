@@ -141,6 +141,23 @@ export class Repository {
     return row ? mapMessageMapping(row) : null;
   }
 
+  async findBySessionAdminMessage(
+    sessionId: number,
+    adminTopicId: number,
+    adminMessageId: number,
+  ): Promise<MessageMapping | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT * FROM message_mappings
+         WHERE session_id = ? AND admin_topic_id = ? AND admin_message_id = ?
+         ORDER BY id DESC
+         LIMIT 1`,
+      )
+      .bind(sessionId, adminTopicId, adminMessageId)
+      .first<MessageMappingRow>();
+    return row ? mapMessageMapping(row) : null;
+  }
+
   async findByAdminChatMessage(
     adminChatId: number,
     adminMessageId: number,

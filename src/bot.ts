@@ -9,6 +9,7 @@ import {
   shouldNotifyMutedUser,
 } from "./commands";
 import { parseAdminGroupId } from "./env";
+import { adminReplyParameters, getReplyToMessageId, userReplyParameters } from "./replies";
 import { getAdminReactionTarget } from "./reactions";
 import { Repository } from "./repository";
 import type { Env, Session, UserProfile } from "./types";
@@ -82,7 +83,16 @@ async function handleUserMessage(
     return;
   }
 
-  const delivered = await deliverUserMessageToAdmin(ctx, adminGroupId, session);
+  const replyToMessageId = getReplyToMessageId(message);
+  const replyMapping = replyToMessageId
+    ? await repo.findByUserMessage(session.id, replyToMessageId)
+    : null;
+  const delivered = await deliverUserMessageToAdmin(
+    ctx,
+    adminGroupId,
+    session,
+    userReplyParameters(replyMapping),
+  );
   if (!delivered) {
     await ctx.reply("这条消息暂时无法转发给客服。");
     return;
@@ -126,7 +136,16 @@ async function handleAdminTopicMessage(
     }
   }
 
-  const delivered = await deliverAdminMessageToUser(ctx, session, adminGroupId);
+  const replyToMessageId = getReplyToMessageId(message);
+  const replyMapping = replyToMessageId
+    ? await repo.findBySessionAdminMessage(session.id, session.topicId, replyToMessageId)
+    : null;
+  const delivered = await deliverAdminMessageToUser(
+    ctx,
+    session,
+    adminGroupId,
+    adminReplyParameters(replyMapping),
+  );
   if (!delivered) {
     await ctx.reply("这条消息无法转发给用户。请改用普通文本消息，或换一种 Telegram 支持复制的消息类型。");
     return;
@@ -195,6 +214,7 @@ async function deliverUserMessageToAdmin(
   ctx: AppContext,
   adminGroupId: number,
   session: Session,
+  replyParameters?: { message_id: number; allow_sending_without_reply?: boolean },
 ): Promise<{ messageId: number } | null> {
   const message = ctx.message;
   if (!message) {
@@ -206,6 +226,7 @@ async function deliverUserMessageToAdmin(
     const sent = await ctx.api.sendMessage(adminGroupId, text, {
       message_thread_id: session.topicId,
       entities: "entities" in message ? message.entities : undefined,
+      reply_parameters: replyParameters,
     });
     return { messageId: sent.message_id };
   }
@@ -213,6 +234,7 @@ async function deliverUserMessageToAdmin(
   try {
     const copied = await ctx.api.copyMessage(adminGroupId, message.chat.id, message.message_id, {
       message_thread_id: session.topicId,
+      reply_parameters: replyParameters,
     });
     return { messageId: copied.message_id };
   } catch (error) {
@@ -228,6 +250,7 @@ async function deliverAdminMessageToUser(
   ctx: AppContext,
   session: Session,
   adminGroupId: number,
+  replyParameters?: { message_id: number; allow_sending_without_reply?: boolean },
 ): Promise<{ messageId: number } | null> {
   const message = ctx.message;
   if (!message) {
@@ -238,12 +261,15 @@ async function deliverAdminMessageToUser(
   if (text) {
     const sent = await ctx.api.sendMessage(session.userChatId, text, {
       entities: "entities" in message ? message.entities : undefined,
+      reply_parameters: replyParameters,
     });
     return { messageId: sent.message_id };
   }
 
   try {
-    const copied = await ctx.api.copyMessage(session.userChatId, adminGroupId, message.message_id);
+    const copied = await ctx.api.copyMessage(session.userChatId, adminGroupId, message.message_id, {
+      reply_parameters: replyParameters,
+    });
     return { messageId: copied.message_id };
   } catch (error) {
     console.warn("Failed to copy admin message to user", describeMessageForLog(message), error);
